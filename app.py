@@ -1,14 +1,15 @@
-from flask import Flask, render_template, request, send_from_directory, url_for
+from flask import Flask, render_template, request, send_from_directory, url_for, session
+from flask_pymongo import PyMongo
 import os
 from flask import redirect
 from werkzeug.utils import secure_filename
 import uuid
 from PIL import Image
-from flask import session
 from functools import wraps
 
 app = Flask(__name__)
 app.config.from_pyfile('config.py')
+mongo = PyMongo(app)
 
 # #################### LOGIN ####################
 # Example user for testing purposes
@@ -91,20 +92,8 @@ def upload():
 
 @app.route('/')
 def index():
-    all_folders = os.listdir(app.config['UPLOAD_FOLDER'])
-    categories = []
-    for folder in all_folders:
-        folder_path = os.path.join(app.config['UPLOAD_FOLDER'], folder)
-        if os.path.isdir(folder_path):
-            original_path = os.path.join(folder_path, 'original')
-            compressed_path = os.path.join(folder_path, 'compressed')
-            if os.path.exists(original_path) and os.path.exists(compressed_path):
-                # Get the first image in the compressed folder as the cover image
-                cover_image = None
-                compressed_images = os.listdir(compressed_path)
-                if compressed_images:
-                    cover_image = compressed_images[0]
-                categories.append({'name': folder, 'cover_image': cover_image})
+    # Fetch the categories from MongoDB, sorted by the 'order' field
+    categories = list(mongo.db.categories.find().sort('order'))
     return render_template('index.jinja2', categories=categories)
 
 
@@ -112,7 +101,9 @@ def index():
 def category(category):
     compressed_folder = os.path.join(app.config['UPLOAD_FOLDER'], category, 'compressed')
     image_files = os.listdir(compressed_folder)
-    return render_template('category.jinja2', category=category, images=image_files)
+    category_info = mongo.db.categories.find_one({"name": category})
+    cover_image = category_info.get("cover_image")
+    return render_template('category.jinja2', category=category, images=image_files, cover_image=cover_image)
 
 
 @app.route('/uploads/<path:subpath>')
@@ -134,7 +125,57 @@ def create_category():
         os.makedirs(new_category_path)
         os.makedirs(os.path.join(new_category_path, 'original'))
         os.makedirs(os.path.join(new_category_path, 'compressed'))
+
+        # Add the new category to the MongoDB collection
+        mongo.db.categories.insert_one({
+            'name': category_name,
+            'order': mongo.db.categories.count_documents({}),  # Set the order to the current number of categories
+            'cover_image': None
+        })
+
     return redirect(url_for('index'))
+
+
+@app.route('/move_category/<category_name>/<direction>')
+@login_required
+def move_category(category_name, direction):
+    if direction not in ['up', 'down']:
+        return 'Invalid direction', 400
+
+    category = mongo.db.categories.find_one({'name': category_name})
+
+    if not category:
+        return 'Category not found', 404
+
+    if direction == 'up':
+        # Find the previous category
+        prev_category = mongo.db.categories.find_one({'order': category['order'] - 1})
+        if prev_category:
+            # Swap the order of the current category and the previous category
+            mongo.db.categories.update_one({'_id': category['_id']}, {'$set': {'order': category['order'] - 1}})
+            mongo.db.categories.update_one({'_id': prev_category['_id']}, {'$set': {'order': prev_category['order'] + 1}})
+    else:
+        # Find the next category
+        next_category = mongo.db.categories.find_one({'order': category['order'] + 1})
+        if next_category:
+            # Swap the order of the current category and the next category
+            mongo.db.categories.update_one({'_id': category['_id']}, {'$set': {'order': category['order'] + 1}})
+            mongo.db.categories.update_one({'_id': next_category['_id']}, {'$set': {'order': next_category['order'] - 1}})
+
+    return redirect(url_for('index'))
+
+
+@app.route('/set_cover_image/<category_name>/<image_name>')
+@login_required
+def set_cover_image(category_name, image_name):
+    category = mongo.db.categories.find_one({'name': category_name})
+    if not category:
+        return 'Category not found', 404
+
+    # Update the cover image in the MongoDB database
+    mongo.db.categories.update_one({'_id': category['_id']}, {'$set': {'cover_image': image_name}})
+
+    return redirect(url_for('category', category=category_name))
 
 
 if __name__ == '__main__':

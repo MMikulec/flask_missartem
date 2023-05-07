@@ -66,6 +66,8 @@
                             <img class="img-fluid" src="/static/assets/img/No_Image_Available.jpg">
                         {% endif %}
                     </a>
+                    <a href="{{ url_for('move_category', category_name=category.name, direction='up') }}">↑</a>
+                    <a href="{{ url_for('move_category', category_name=category.name, direction='down') }}">↓</a>
                 </div>
 
             {% endfor %}
