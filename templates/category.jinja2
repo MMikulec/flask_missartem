@@ -1,0 +1,140 @@
+{% extends "base.jinja2" %}
+
+{% block content %}
+    <!--
+    {% if session['username'] %}
+        <p>Welcome, {{ session['username'] }}! You are logged in.</p>
+        <h2>Upload images</h2>
+        <form action="{{ url_for('upload') }}" method="post" enctype="multipart/form-data">
+            <input type="hidden" name="category" value="{{ category }}">
+            <input type="file" name="photos" accept="image/*" multiple>
+            <input type="submit" value="Upload">
+        </form>
+    {% else %}
+        <p>Please <a href="{{ url_for('login') }}">log in</a> to access this content.</p>
+    {% endif %}
+
+    <h1>{{ category }}</h1>
+    <div>
+        {% for image in images %}
+            <a href="{{ url_for('serve_original_uploads', subpath=category+'/original/'+image) }}" download="{{ image }}">
+                <img src="{{ url_for('serve_uploads', subpath=category+'/compressed/'+image) }}" alt="{{ image }}" style="width: 200px; height: auto;">
+            </a>
+        {% endfor %}
+    </div>
+    <a href="{{ url_for('index') }}">Back to categories</a> -->
+
+    <main id="main">
+
+    <section class="section">
+      <div class="container">
+        {% if session['username'] %}
+            <p>Welcome, {{ session['username'] }}! You are logged in.</p>
+            <h2>Upload images</h2>
+            <form action="{{ url_for('upload') }}" method="post" enctype="multipart/form-data">
+                <input type="hidden" name="category" value="{{ category }}">
+                <input type="file" name="photos" accept="image/*" multiple>
+                <input type="submit" value="Upload">
+            </form>
+        {% endif %}
+        <div class="row mb-4 align-items-center">
+          <div class="col-md-6" data-aos="fade-up">
+            <h2>Work Single Page</h2>
+            <p>Lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam necessitatibus incidunt ut officiis explicabo inventore.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="site-section pb-0 mb-5">
+        <div class="container">
+          <div class="row align-items-stretch">
+            <div class="col-md-8" data-aos="fade-up">
+              <img src="assets/img/mainsite/print1.png" alt="Image" class="img-fluid">
+            </div>
+            <div class="col-md-3 ml-auto" data-aos="fade-up" data-aos-delay="100">
+              <div class="sticky-content">
+                <h3 class="h3">Back in time</h3>
+                <p class="mb-4"><span class="text-muted">Design</span></p>
+
+                <div class="mb-5">
+                  <p>Lorem ipsum dolor sit amet, consectetur adipisicing elit. Dolores illo, id recusandae molestias
+                    illum unde pariatur, enim tempora.</p>
+
+                </div>
+
+                <h4 class="h4 mb-3">What I did</h4>
+                <ul class="list-unstyled list-line mb-5">
+                  <li>Design</li>
+                  <li>HTML5/CSS3</li>
+                  <li>CMS</li>
+                  <li>Logo</li>
+                </ul>
+
+                <p><a href="#" class="readmore">Visit Website</a></p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="container">
+        <div id="portfolio-grid" class="row no-gutter" data-aos="fade-up" data-aos-delay="200">
+            {% for image in images %}
+                <div class="item web col-sm-6 col-md-4 col-lg-4 mb-4">
+                    <a href="{{ url_for('serve_original_uploads', subpath=category+'/original/'+image) }}" class="item-wrap fancybox">
+                      <div class="work-info">
+                        <h3>Back in time</h3>
+                        <span>Web</span>
+                      </div>
+                      <img class="img-fluid" src="{{ url_for('serve_uploads', subpath=category+'/compressed/'+image) }}">
+                    </a>
+               </div>
+            {% endfor %}
+
+
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ======= Testimonials Section ======= -->
+    <section class="section pt-0">
+      <div class="container">
+
+        <div class="testimonials-slider swiper" data-aos="fade-up" data-aos-delay="100">
+          <div class="swiper-wrapper">
+
+            <div class="swiper-slide">
+              <div class="testimonial-wrap">
+                <div class="testimonial">
+                  <img src="assets/img/person_1.jpg" alt="Image" class="img-fluid">
+                  <blockquote>
+                    <p>Lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam necessitatibus incidunt ut officiis
+                      explicabo inventore.</p>
+                  </blockquote>
+                  <p>&mdash; Jean Hicks</p>
+                </div>
+              </div>
+            </div><!-- End testimonial item -->
+
+            <div class="swiper-slide">
+              <div class="testimonial-wrap">
+                <div class="testimonial">
+                  <img src="assets/img/person_2.jpg" alt="Image" class="img-fluid">
+                  <blockquote>
+                    <p>Lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam necessitatibus incidunt ut officiis
+                      explicabo inventore.</p>
+                  </blockquote>
+                  <p>&mdash; Chris Stanworth</p>
+                </div>
+              </div>
+            </div><!-- End testimonial item -->
+
+          </div>
+          <div class="swiper-pagination"></div>
+        </div>
+
+      </div>
+    </section><!-- End Testimonials Section -->
+
+  </main><!-- End #main -->
+{% endblock %}

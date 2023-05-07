@@ -1,0 +1,15 @@
+# .gitignore for Python projects
+
+# Directory with my own images
+static/images/
+
+# PyCharm
+.idea/
+
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Venv created .gitignore automatically

@@ -1,0 +1,1 @@
+A simple Flask application for creating a portfolio of images.
