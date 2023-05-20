@@ -4,8 +4,10 @@ import os
 from flask import redirect
 from werkzeug.utils import secure_filename
 import uuid
+import shutil
 from PIL import Image
 from functools import wraps
+from bson.objectid import ObjectId
 
 app = Flask(__name__)
 app.config.from_pyfile('config.py')
@@ -70,10 +72,15 @@ def compress_and_save_image(input_path, output_path, max_size=(800, 800), qualit
 @app.route('/upload', methods=['POST'])
 @login_required
 def upload():
-    category = request.form['category']
+    category_name = request.form['category']
+    category = mongo.db.categories.find_one({"name": category_name})
+    if not category:
+        return "Category not found", 404
+
+    category_id = category['_id']
     photos = request.files.getlist('photos')
-    original_folder = os.path.join(app.config['UPLOAD_FOLDER'], category, 'original')
-    compressed_folder = os.path.join(app.config['UPLOAD_FOLDER'], category, 'compressed')
+    original_folder = os.path.join(app.config['UPLOAD_FOLDER'], category_name, 'original')
+    compressed_folder = os.path.join(app.config['UPLOAD_FOLDER'], category_name, 'compressed')
 
     for photo in photos:
         if photo and allowed_file(photo.filename):
@@ -87,7 +94,14 @@ def upload():
             # Compress and save the image
             compress_and_save_image(original_path, compressed_path)
 
-    return redirect(url_for('category', category=category))
+            # Save image information in MongoDB
+            mongo.db.images.insert_one({
+                'filename': filename,
+                'category_id': category_id,
+                'description': photo.filename.split('.')[0]  # Empty description initially
+            })
+
+    return redirect(url_for('category', category=category_name))
 
 
 @app.route('/')
@@ -99,10 +113,20 @@ def index():
 
 @app.route('/category/<category>')
 def category(category):
+    """
     compressed_folder = os.path.join(app.config['UPLOAD_FOLDER'], category, 'compressed')
     image_files = os.listdir(compressed_folder)
     category_info = mongo.db.categories.find_one({"name": category})
     cover_image = category_info.get("cover_image")
+    return render_template('category.jinja2', category=category, images=image_files, cover_image=cover_image)
+"""
+    # Get the category information
+    category_info = mongo.db.categories.find_one({"name": category})
+    cover_image = category_info.get("cover_image")
+
+    # Fetch the image files from MongoDB
+    image_files = list(mongo.db.images.find({"category_id": category_info["_id"]}))
+
     return render_template('category.jinja2', category=category, images=image_files, cover_image=cover_image)
 
 
@@ -165,6 +189,33 @@ def move_category(category_name, direction):
     return redirect(url_for('index'))
 
 
+@app.route('/delete_category/<category>', methods=['POST'])
+@login_required
+def delete_category(category):
+    # Get the order and id of the category being deleted
+    category_info = mongo.db.categories.find_one({'name': category})
+    category_order = category_info['order']
+    category_id = category_info['_id']
+
+    # Delete the images associated with the category
+    mongo.db.images.delete_many({'category_id': category_id})
+
+    # Delete the category from the database
+    mongo.db.categories.delete_one({'_id': category_id})
+
+    # Decrease the order of all categories that come after the one being deleted
+    mongo.db.categories.update_many(
+        {'order': {'$gt': category_order}},
+        {'$inc': {'order': -1}}
+    )
+
+    # Delete the category directory from the filesystem
+    category_path = os.path.join(app.config['UPLOAD_FOLDER'], category)
+    shutil.rmtree(category_path)
+
+    return redirect(url_for('index'))
+
+
 @app.route('/set_cover_image/<category_name>/<image_name>')
 @login_required
 def set_cover_image(category_name, image_name):
@@ -177,6 +228,19 @@ def set_cover_image(category_name, image_name):
 
     return redirect(url_for('category', category=category_name))
 
+
+@app.route('/update_description/<image_id>', methods=['POST'])
+@login_required
+def update_description(image_id):
+    new_description = request.form.get('new_description')
+    mongo.db.images.update_one({'_id': ObjectId(image_id)}, {'$set': {'description': new_description}})
+    return redirect(request.referrer)
+
+
+@app.route('/delete_image/<image>', methods=['POST'])
+@login_required
+def delete_image(image):
+    pass
 
 if __name__ == '__main__':
     app.run(debug=True)
