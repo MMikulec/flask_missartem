@@ -45,7 +45,7 @@
                         {% if category.cover_image %}
                             <img class="img-fluid" src="{{ url_for('serve_uploads', subpath=category.name+'/compressed/'+category.cover_image) }}" alt="{{ category.name }}">
                         {% else %}
-                            <img class="img-fluid" src="/static/assets/img/No_Image_Available.jpg" alt="{{ category.name }}>
+                            <img class="img-fluid" src="/static/assets/img/No_Image_Available.jpg" alt="{{ category.name }}">
                         {% endif %}
                     </a>
                     {% if session['username'] %}

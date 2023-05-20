@@ -49,6 +49,7 @@
                   <li>Logo</li>
                 </ul>
                 <p><a href="#" class="readmore">Visit Website</a></p>
+                <p><a href="{{ url_for('download_category', category=category) }}" class="readmore"><span class="bi bi-download"></span> Download all images</a></p>
               </div>
             </div>
           </div>
@@ -56,6 +57,26 @@
       </div>
       <div class="container">
         <div id="portfolio-grid" class="row no-gutter" data-aos="fade-up" data-aos-delay="200">
+            {% for image in images %}
+                <div class="item {# web #} col-sm-6 col-md-4 col-lg-4 mb-4">
+                <a href="{{ url_for('serve_uploads', subpath=category+'/compressed/'+image.filename) }}" class="item-wrap image-popup" data-source="{{ url_for('serve_original_uploads', subpath=category+'/original/'+image.filename) }}" data-gallery="gallery1">
+                    <div class="work-info">
+                        <span>{{ image.description }}</span>
+                    </div>
+                    <img class="img-fluid" src="{{ url_for('serve_uploads', subpath=category+'/compressed/'+image.filename) }}" alt="{{ image.description }}">
+                </a>
+                {% if session['username'] %}
+                    <a href="{{ url_for('set_cover_image', category_name=category, image_name=image.filename) }}">Set as cover</a>
+                    <form action="{{ url_for('update_description', image_id=image._id) }}" method="POST">
+                        <input type="text" name="new_description" value="{{ image.description }}" />
+                        <input type="submit" value="Update Description" />
+                    </form>
+                {% endif %}
+            </div>
+            {% endfor %}
+
+
+            <!--
             {% for image in images %}
                 <div class="item {# web #} col-sm-6 col-md-4 col-lg-4 mb-4">
                     <a href="{{ url_for('serve_original_uploads', subpath=category+'/original/'+image.filename) }}" class="item-wrap fancybox">
@@ -74,6 +95,7 @@
                     {% endif %}
                 </div>
             {% endfor %}
+            -->
         </div>
       </div>
     </section>
@@ -120,4 +142,25 @@
     </section><!-- End Testimonials Section -->  #}
 
   </main><!-- End Main Section -->
+{% endblock %}
+{% block script %}
+    <script>
+        $(document).ready(function() {
+            $('.image-popup').magnificPopup({
+                type: 'image',
+                closeOnContentClick: false,
+                mainClass: 'mfp-img-mobile',
+                image: {
+                    verticalFit: true,
+                    titleSrc: function(item) {
+                        var imgAlt = item.el.find('img').attr('alt');
+                        return imgAlt + ' &middot; <a class="image-source-link" href="'+item.el.attr('data-source')+'" target="_blank">View original</a>';
+                    }
+                },
+                gallery: {
+                    enabled: true
+                }
+            });
+        });
+    </script>
 {% endblock %}

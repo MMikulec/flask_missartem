@@ -2,6 +2,7 @@ import os
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 UPLOAD_FOLDER = os.path.join(BASE_DIR, 'static', 'images')
+TEMP_FOLDER = os.path.join(BASE_DIR, 'temp')
 
 SECRET_KEY = 'your-secret-key'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}

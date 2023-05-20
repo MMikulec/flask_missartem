@@ -1,3 +1,11 @@
+import tempfile
+import threading
+import time
+import zipfile
+
+from flask import send_file, after_this_request
+from zipfile import ZipFile
+
 from flask import Flask, render_template, request, send_from_directory, url_for, session
 from flask_pymongo import PyMongo
 import os
@@ -67,6 +75,22 @@ def compress_and_save_image(input_path, output_path, max_size=(800, 800), qualit
     with Image.open(input_path) as img:
         img.thumbnail(max_size, Image.ANTIALIAS)
         img.save(output_path, format=img.format, quality=quality)
+
+
+def cleanup_old_files(zip_filename):
+    while True:
+        time.sleep(5)
+        if os.path.isfile(zip_filename):
+            print(f"File to delete: {zip_filename}")
+
+            creation_time = os.path.getctime(zip_filename)
+            now = time.time()
+            if creation_time < (now - 10):  # 1 hour
+                os.remove(zip_filename)
+                print(f"Delete {zip_filename}")
+                break
+        else:
+            break
 
 
 @app.route('/upload', methods=['POST'])
@@ -241,6 +265,29 @@ def update_description(image_id):
 @login_required
 def delete_image(image):
     pass
+
+
+@app.route('/download/<category>', methods=['GET'])
+def download_category(category):
+    # Create a temporary zip file
+    zip_filename = os.path.join(app.config['TEMP_FOLDER'], f"{category}_{uuid.uuid4()}.zip")
+    with zipfile.ZipFile(zip_filename, 'w') as zipf:
+        # Iterate over all images in the category
+        category_id = mongo.db.categories.find_one({"name": category})["_id"]
+        image_files = mongo.db.images.find({'category_id': category_id})
+        for image in image_files:
+            # Use the 'original' images
+            image_path = os.path.join(app.config['UPLOAD_FOLDER'], category, 'original', image['filename'])
+            # Add the file to the zip archive, with a path within the archive
+            zipf.write(image_path, arcname=os.path.join(category, image['filename']))
+
+        print(zip_filename)
+
+    cleanup_thread = threading.Thread(target=cleanup_old_files, args=(zip_filename,))
+    cleanup_thread.start()
+
+    return send_file(zip_filename, mimetype='application/zip', as_attachment=True)
+
 
 if __name__ == '__main__':
     app.run(debug=True)
