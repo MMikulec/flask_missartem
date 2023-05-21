@@ -1,4 +1,9 @@
 {% extends "base.jinja2" %}
+{% block head %}
+    <title>Portfolio Index - missartem.sk</title>
+    <meta content="" name="description">
+    <meta content="" name="keywords">
+{% endblock %}
 
 {% block content %}
     <!-- ======= Main ======= -->
@@ -8,13 +13,15 @@
     <section class="section site-portfolio">
       <div class="container">
         {% if session['username'] %}
-            <p>Welcome, {{ session['username'] }}! You are logged in.</p>
-            <h2>Create a new category</h2>
-            <form action="{{ url_for('create_category') }}" method="post">
-                <label for="category_name">Category name:</label>
-                <input type="text" id="category_name" name="category_name" required>
-                <input type="submit" value="Create">
-            </form>
+            <div class="row mb-5 align-items-center">
+                <p>Welcome, {{ session['username'] }}! You are logged in.</p>
+                <h3 class="h3">Create a new category</h3>
+                <form action="{{ url_for('create_category') }}" method="post">
+                    <label for="category_name">Category name:</label>
+                    <input type="text" id="category_name" name="category_name" required>
+                    <input type="submit" value="Create">
+                </form>
+            </div>
         {% endif %}
         <div class="row mb-5 align-items-center">
           <div class="col-md-12 col-lg-6 mb-4 mb-lg-0" data-aos="fade-up">

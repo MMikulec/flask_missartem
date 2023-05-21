@@ -1,14 +1,14 @@
-import tempfile
 import threading
 import time
 import zipfile
 
-from flask import send_file, after_this_request
+from flask import send_file
 from zipfile import ZipFile
 
-from flask import Flask, render_template, request, send_from_directory, url_for, session
+from flask import Flask, render_template, request, send_from_directory, url_for, session, make_response
 from flask_pymongo import PyMongo
 import os
+from datetime import datetime, timedelta
 from flask import redirect
 from werkzeug.utils import secure_filename
 import uuid
@@ -41,7 +41,7 @@ def login_required(f):
     return decorated_function
 
 
-@app.route('/login', methods=['GET', 'POST'])
+@app.route('/login', methods=['GET', 'POST'], endpoint='private.login')
 def login():
     if request.method == 'POST':
         username = request.form.get('username')
@@ -54,7 +54,7 @@ def login():
     return render_template('login.jinja2')
 
 
-@app.route('/logout')
+@app.route('/logout', endpoint='private.logout')
 def logout():
     session.pop('username', None)
     return redirect(url_for('index'))
@@ -122,8 +122,19 @@ def upload():
             mongo.db.images.insert_one({
                 'filename': filename,
                 'category_id': category_id,
-                'description': photo.filename.split('.')[0]  # Empty description initially
+                'description': photo.filename.split('.')[0],  # Empty description initially
+                'uploaded_at': datetime.now()
             })
+
+            # When updating an album
+            mongo.db.categories.update_one(
+                {'_id': ObjectId(category_id)},
+                {
+                    '$set': {
+                        'updated_at': datetime.now()
+                    }
+                }
+            )
 
     return redirect(url_for('category', category=category_name))
 
@@ -151,7 +162,7 @@ def category(category):
     # Fetch the image files from MongoDB
     image_files = list(mongo.db.images.find({"category_id": category_info["_id"]}))
 
-    return render_template('category.jinja2', category=category, images=image_files, cover_image=cover_image)
+    return render_template('category.jinja2', category=category, images=image_files, cover_image=cover_image, category_info=category_info)
 
 
 @app.route('/uploads/<path:subpath>')
@@ -178,7 +189,10 @@ def create_category():
         mongo.db.categories.insert_one({
             'name': category_name,
             'order': mongo.db.categories.count_documents({}),  # Set the order to the current number of categories
-            'cover_image': None
+            'cover_image': None,
+            'description': '',
+            'created_at': datetime.now(),
+            'updated_at': datetime.now()
         })
 
     return redirect(url_for('index'))
@@ -253,18 +267,45 @@ def set_cover_image(category_name, image_name):
     return redirect(url_for('category', category=category_name))
 
 
-@app.route('/update_description/<image_id>', methods=['POST'])
+@app.route('/update_description/<item_type>/<item_id>', methods=['POST'])
 @login_required
-def update_description(image_id):
+def update_description(item_type, item_id):
+    if item_type == 'image':
+        collection = mongo.db.images
+    elif item_type == 'category':
+        collection = mongo.db.categories
+    else:
+        return "Invalid item type", 400  # HTTP 400 Bad Request
+
     new_description = request.form.get('new_description')
-    mongo.db.images.update_one({'_id': ObjectId(image_id)}, {'$set': {'description': new_description}})
+    collection.update_one({'_id': ObjectId(item_id)}, {'$set': {'description': new_description}})
     return redirect(request.referrer)
 
 
-@app.route('/delete_image/<image>', methods=['POST'])
+@app.route('/delete_image/<image_id>', methods=['POST'])
 @login_required
-def delete_image(image):
-    pass
+def delete_image(image_id):
+    # Fetch the image from the database
+    image = mongo.db.images.find_one({'_id': ObjectId(image_id)})
+
+    # Get the category_id from the image
+    category_id = image.get('category_id')
+
+    # Look up the category name in the categories collection
+    category = mongo.db.categories.find_one({'_id': ObjectId(category_id)})
+    category_name = category.get('name')
+
+    # Get the image filename
+    filename = image.get('filename')
+
+    # Delete the image document from MongoDB
+    mongo.db.images.delete_one({'_id': ObjectId(image_id)})
+
+    # Delete the image file from the server
+    os.remove(os.path.join(app.config['UPLOAD_FOLDER'], category_name, 'original', filename))
+    os.remove(os.path.join(app.config['UPLOAD_FOLDER'], category_name, 'compressed', filename))
+
+    return redirect(request.referrer)
 
 
 @app.route('/download/<category>', methods=['GET'])
@@ -287,6 +328,48 @@ def download_category(category):
     cleanup_thread.start()
 
     return send_file(zip_filename, mimetype='application/zip', as_attachment=True)
+
+
+@app.route('/sitemap.xml', methods=['GET'])
+def sitemap():
+    """Generate sitemap.xml including album and image data."""
+    pages = []
+
+    # static pages
+    for rule in app.url_map.iter_rules():
+        if "GET" in rule.methods and len(rule.arguments) == 0:
+            # Exclude 'private' routes
+            if 'private' not in rule.endpoint:
+                pages.append(
+                    [url_for(rule.endpoint, _external=True), datetime.now().date().isoformat(), []]
+                )
+
+    # album and image data
+    albums = mongo.db.categories.find()
+    for album in albums:
+        url = url_for('category', category=album['name'], _external=True)
+        lastmod = album['updated_at'].isoformat()
+        image_data = []
+        images = mongo.db.images.find({'category_id': album['_id']})
+        for image in images:
+            image_url = url_for('serve_uploads', subpath=album['name'] + '/compressed/' + image['filename'],
+                                _external=True)
+            image_caption = image['description']
+            image_data.append([image_url, image_caption])
+        pages.append([url, lastmod, image_data])
+
+    sitemap_xml = render_template('sitemap_template.xml', pages=pages)
+    response = make_response(sitemap_xml)
+    response.headers["Content-Type"] = "application/xml"
+
+    return response
+
+
+@app.route('/robots.txt')
+def robots():
+    response = make_response(render_template('robots.jinja2'))
+    response.headers["Content-Type"] = "text/plain"
+    return response
 
 
 if __name__ == '__main__':

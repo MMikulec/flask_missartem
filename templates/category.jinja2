@@ -1,4 +1,9 @@
 {% extends "base.jinja2" %}
+{% block head %}
+    <title>{{ category }} - missartem.sk</title>
+    <meta content="{{ category_info['description'] }}" name="description">
+    <meta content="" name="keywords">
+{% endblock %}
 
 {% block content %}
     <!-- ======= Main ======= -->
@@ -7,18 +12,27 @@
     <section class="section">
       <div class="container">
         {% if session['username'] %}
-            <p>Welcome, {{ session['username'] }}! You are logged in.</p>
-            <h2>Upload images</h2>
-            <form action="{{ url_for('upload') }}" method="post" enctype="multipart/form-data">
-                <input type="hidden" name="category" value="{{ category }}">
-                <input type="file" name="photos" accept="image/*" multiple>
-                <input type="submit" value="Upload">
-            </form>
+            <div class="row mb-5 align-items-center">
+                <p>Welcome, {{ session['username'] }}! You are logged in.</p>
+                <h3 class="h3">Upload images</h3>
+                <form action="{{ url_for('upload') }}" method="post" enctype="multipart/form-data">
+                    <input type="hidden" name="category" value="{{ category }}">
+                    <input type="file" name="photos" accept="image/*" multiple>
+                    <input type="submit" value="Upload">
+                </form>
+            </div>
         {% endif %}
         <div class="row mb-4 align-items-center">
           <div class="col-md-6" data-aos="fade-up">
             <h2>{{ category }}</h2>
-            <p>Lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam necessitatibus incidunt ut officiis explicabo inventore.</p>
+
+            <p>{{ category_info['description'] }}</p>
+              {% if session['username'] %}
+              <form action="{{ url_for('update_description', item_type='category', item_id=category_info._id) }}" method="POST">
+                <input type="text" name="new_description" value="{{ category_info['description'] }}" />
+                <input type="submit" value="Update Description Category" />
+              </form>
+              {% endif %}
           </div>
         </div>
       </div>
@@ -36,7 +50,7 @@
             <div class="col-md-3 ml-auto" data-aos="fade-up" data-aos-delay="100">
               <div class="sticky-content">
                 <h3 class="h3">Back in time</h3>
-                <p class="mb-4"><span class="text-muted">Design</span></p>
+                <p class="mb-4"><span class="text-muted">{{ images|length }} pictures in this album</span></p>
                 <div class="mb-5">
                   <p>Lorem ipsum dolor sit amet, consectetur adipisicing elit. Dolores illo, id recusandae molestias
                     illum unde pariatur, enim tempora.</p>
@@ -67,35 +81,16 @@
                 </a>
                 {% if session['username'] %}
                     <a href="{{ url_for('set_cover_image', category_name=category, image_name=image.filename) }}">Set as cover</a>
-                    <form action="{{ url_for('update_description', image_id=image._id) }}" method="POST">
+                    <form action="{{ url_for('update_description', item_type='image', item_id=image._id) }}" method="POST">
                         <input type="text" name="new_description" value="{{ image.description }}" />
                         <input type="submit" value="Update Description" />
+                    </form>
+                    <form action="{{ url_for('delete_image', image_id=image._id) }}" method="POST">
+                        <input type="submit" value="Delete Image">
                     </form>
                 {% endif %}
             </div>
             {% endfor %}
-
-
-            <!--
-            {% for image in images %}
-                <div class="item {# web #} col-sm-6 col-md-4 col-lg-4 mb-4">
-                    <a href="{{ url_for('serve_original_uploads', subpath=category+'/original/'+image.filename) }}" class="item-wrap fancybox">
-                        <div class="work-info">
-                            {#<h3>{{ image.description }}</h3>#}
-                            <span>{{ image.description }}</span>
-                        </div>
-                        <img class="img-fluid" src="{{ url_for('serve_uploads', subpath=category+'/compressed/'+image.filename) }}" alt="{{ image.description }}">
-                    </a>
-                    {% if session['username'] %}
-                        <a href="{{ url_for('set_cover_image', category_name=category, image_name=image.filename) }}">Set as cover</a>
-                        <form action="{{ url_for('update_description', image_id=image._id) }}" method="POST">
-                            <input type="text" name="new_description" value="{{ image.description }}" />
-                            <input type="submit" value="Update Description" />
-                        </form>
-                    {% endif %}
-                </div>
-            {% endfor %}
-            -->
         </div>
       </div>
     </section>
