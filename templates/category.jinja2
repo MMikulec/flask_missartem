@@ -2,7 +2,7 @@
 {% block head %}
     <title>{{ category }} - missartem.sk</title>
     <meta content="{{ category_info['description'] }}" name="description">
-    <meta content="" name="keywords">
+    <meta content="{{ category_info.keywords }}" name="keywords">
 {% endblock %}
 
 {% block content %}
@@ -18,7 +18,15 @@
                 <form action="{{ url_for('upload') }}" method="post" enctype="multipart/form-data">
                     <input type="hidden" name="category" value="{{ category }}">
                     <input type="file" name="photos" accept="image/*" multiple>
-                    <input type="submit" value="Upload">
+                    <input type="submit" value="Upload" class="my_btn">
+                </form>
+                <form action="{{ url_for('update_description', item_type='category', item_id=category_info._id) }}" method="POST">
+                    <input type="text" name="new_description" value="{{ category_info['description'] }}" />
+                    <input type="submit" value="Update Description Category" class="my_btn"/>
+                </form>
+                <form action="{{ url_for('update_keywords', category_id=category_info._id) }}" method="POST">
+                    <input type="text" name="new_keywords" value="{{ category_info.keywords }}" />
+                    <input type="submit" value="Update Keywords" class="my_btn"/>
                 </form>
             </div>
         {% endif %}
@@ -27,12 +35,6 @@
             <h2>{{ category }}</h2>
 
             <p>{{ category_info['description'] }}</p>
-              {% if session['username'] %}
-              <form action="{{ url_for('update_description', item_type='category', item_id=category_info._id) }}" method="POST">
-                <input type="text" name="new_description" value="{{ category_info['description'] }}" />
-                <input type="submit" value="Update Description Category" />
-              </form>
-              {% endif %}
           </div>
         </div>
       </div>
@@ -42,7 +44,7 @@
           <div class="row align-items-stretch">
             <div class="col-md-8" data-aos="fade-up">
                 {% if cover_image %}
-                    <img class="img-fluid" src="{{ url_for('serve_uploads', subpath=category+'/compressed/'+cover_image) }}">
+                    <img class="img-fluid" src="{{ url_for('serve_uploads', sub_path=category+'/compressed/'+cover_image) }}">
                 {% else %}
                     <img class="img-fluid" src="/static/assets/img/No_Image_Available.jpg">
                 {% endif %}
@@ -52,6 +54,12 @@
                 <h3 class="h3">Back in time</h3>
                 <p class="mb-4"><span class="text-muted">{{ images|length }} pictures in this album</span></p>
                 <div class="mb-5">
+                    {% if category_info['created_at'] %}
+                        <p>Created at: {{ category_info['created_at'].strftime('%d.%m.%Y %H:%M:%S') }}</p>
+                    {% endif %}
+                    {% if category_info['updated_at'] %}
+                        <p>Updated at: {{ category_info['updated_at'].strftime('%d.%m.%Y %H:%M:%S') }}</p>
+                    {% endif %}
                   <p>Lorem ipsum dolor sit amet, consectetur adipisicing elit. Dolores illo, id recusandae molestias
                     illum unde pariatur, enim tempora.</p>
                 </div>
@@ -62,7 +70,6 @@
                   <li>CMS</li>
                   <li>Logo</li>
                 </ul>
-                <p><a href="#" class="readmore">Visit Website</a></p>
                 <p><a href="{{ url_for('download_category', category=category) }}" class="readmore"><span class="bi bi-download"></span> Download all images</a></p>
               </div>
             </div>
@@ -72,23 +79,29 @@
       <div class="container">
         <div id="portfolio-grid" class="row no-gutter" data-aos="fade-up" data-aos-delay="200">
             {% for image in images %}
-                <div class="item {# web #} col-sm-6 col-md-4 col-lg-4 mb-4">
-                <a href="{{ url_for('serve_uploads', subpath=category+'/compressed/'+image.filename) }}" class="item-wrap image-popup" data-source="{{ url_for('serve_original_uploads', subpath=category+'/original/'+image.filename) }}" data-gallery="gallery1">
-                    <div class="work-info">
-                        <span>{{ image.description }}</span>
-                    </div>
-                    <img class="img-fluid" src="{{ url_for('serve_uploads', subpath=category+'/compressed/'+image.filename) }}" alt="{{ image.description }}">
-                </a>
-                {% if session['username'] %}
-                    <a href="{{ url_for('set_cover_image', category_name=category, image_name=image.filename) }}">Set as cover</a>
-                    <form action="{{ url_for('update_description', item_type='image', item_id=image._id) }}" method="POST">
-                        <input type="text" name="new_description" value="{{ image.description }}" />
-                        <input type="submit" value="Update Description" />
-                    </form>
-                    <form action="{{ url_for('delete_image', image_id=image._id) }}" method="POST">
-                        <input type="submit" value="Delete Image">
-                    </form>
-                {% endif %}
+            <div class="item {# web #} col-sm-6 col-md-4 col-lg-4 mb-4">
+              <a href="{{ url_for('serve_uploads', sub_path=category+'/compressed/'+image.filename) }}" class="item-wrap image-popup" data-source="{{ url_for('serve_original_uploads', sub_path=category+'/original/'+image.filename) }}" data-gallery="gallery1">
+                <div class="work-info">
+                  <span>{{ image.description }}</span>
+                  {% if session['username'] %}
+                      <!-- Form to update photo name -->
+                      <form action="{{ url_for('update_description', item_type='image', item_id=image._id) }}" method="POST" class="description-forms" onclick="event.stopPropagation();">
+                        <input type="text" name="new_description" value="{{ image.description }}"/>
+                        <input type="submit" value="Update Description" class="my_btn"/>
+                      </form>
+                  {% else %}
+                      {# <span>{{ image.description }}</span> #}
+                  {% endif %}
+                </div>
+                <img class="img-fluid" src="{{ url_for('serve_uploads', sub_path=category+'/compressed/'+image.filename) }}" alt="{{ image.description }}">
+              </a>
+              {% if session['username'] %}
+                  <!-- Form to delete the image -->
+                  <form action="{{ url_for('delete_image', image_id=image._id) }}" method="POST" class="delete-button" onclick="event.stopPropagation();">
+                    <input type="submit" value="x" class="mfp-close">
+                  </form>
+                  <a href="{{ url_for('set_cover_image', category_name=category, image_name=image.filename) }}">Set as cover {{ image.description }}</a>
+              {% endif %}
             </div>
             {% endfor %}
         </div>
@@ -140,6 +153,21 @@
 {% endblock %}
 {% block script %}
     <script>
+        document.addEventListener('DOMContentLoaded', function() {
+          // Get all inputs within the anchor tag but exclude the submit buttons
+          var inputs = document.querySelectorAll('a .description-forms input[type=text]');
+
+          // Add event listener to each input
+          inputs.forEach(function(input) {
+            input.addEventListener('click', function(event) {
+              // This will prevent the magnific popup event
+              event.preventDefault();
+              // This will prevent the event from bubbling up to the anchor tag
+              event.stopPropagation();
+            });
+          });
+        });
+
         $(document).ready(function() {
             $('.image-popup').magnificPopup({
                 type: 'image',

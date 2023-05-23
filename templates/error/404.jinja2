@@ -1,0 +1,20 @@
+{% extends "base.jinja2" %}
+{% block head %}
+    <title>404 - missartem.sk</title>
+    <meta content="404" name="description">
+    <meta content="" name="keywords">
+{% endblock %}
+
+{% block content %}
+    <main id="main">
+        <section class="section">
+            <div class="container">
+                <div class="row mb-5 align-items-center">
+                    <h1 class="h1 text-center">404</h1>
+                    <h2 class="h2 text-center">Page not found</h2>
+                    <p class="text-center">{{ e }}</p>
+                </div>
+            </div>
+        </section>
+    </main>
+{% endblock %}

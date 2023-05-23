@@ -205,6 +205,73 @@ h6,
   background: #000;
 }
 
+.my_btn {
+  display: inline-block;
+  border: 1px solid #000;
+  padding: 5px 15px;
+  font-size: 12px;
+  text-transform: uppercase;
+  color: #000;
+  transition: 0.2s all ease;
+  font-weight: 700;
+}
+
+.my_btn:active,
+.my_btn:focus,
+.my_btn:hover {
+  outline: none;
+}
+
+.my_btn:hover {
+  color: #fff;
+  text-decoration: none;
+  background: #000;
+}
+
+.delete-button {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: white;
+  z-index: 10;
+}
+
+.delete-button input {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.description-forms {
+  display: block;
+  margin-top: 10px;
+  color: #fff; /* adjust as per your color scheme */
+  background-color: rgba(0, 0, 0, 0.4); /* adjust as per your color scheme */
+  padding: 5px;
+  border-radius: 3px;
+  transition: 0.3s all ease;
+}
+
+.description-forms input {
+  color: #fff; /* adjust as per your color scheme */
+  background-color: rgba(0, 0, 0, 0.4); /* adjust as per your color scheme */
+  border: none;
+  transition: 0.3s all ease;
+}
+
+.description-forms input:hover,
+.description-forms input:focus {
+  color: #000; /* adjust as per your color scheme */
+  background-color: #fff; /* adjust as per your color scheme */
+}
+
+
+
 .testimonials-slider .swiper-pagination {
   margin-top: -60px;
   position: relative;
