@@ -35,6 +35,13 @@
     ======================================================== -->
 </head>
 <body>
+{% if session['username'] %}
+    <div class="container">
+    <div class="alert alert-light" role="alert">
+      Welcome, {{ session['username'] }}! You are logged in. <a href="{{ url_for("private.logout") }}" class="alert-link">Logout</a> <a href="{{ url_for("private.change_password") }}" class="alert-link">Change password</a>
+    </div>
+    </div>
+    {% endif %}
     {% include 'navbar.jinja2' %}
     {% block content %}
     {% endblock %}

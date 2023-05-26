@@ -11,10 +11,10 @@
 
     <!-- ======= Works Section ======= -->
     <section class="section site-portfolio">
+      {% include 'flash_messages.jinja2' %}
       <div class="container">
         {% if session['username'] %}
             <div class="row mb-5 align-items-center">
-                <p>Welcome, {{ session['username'] }}! You are logged in.</p>
                 <h3 class="h3">Create a new category</h3>
                 <form action="{{ url_for('create_category') }}" method="post">
                     <label for="category_name">Category name:</label>
@@ -42,7 +42,6 @@
         </div>
         <div id="portfolio-grid" class="row no-gutter" data-aos="fade-up" data-aos-delay="200">
             {% for category in categories %}
-
                 <div class="item {# web (design, branding, photography) #} col-sm-6 col-md-4 col-lg-4 mb-4">
                     <a href="{{ url_for('category', category=category.name) }}" class="item-wrap fancybox">
                     <div class="work-info">
@@ -74,14 +73,14 @@
                 </div>
 
             {% endfor %}
-
         </div>
       </div>
     </section><!-- End  Works Section -->
 
-    {#
+
     <!-- ======= Services Section ======= -->
     <section class="section services">
+      {#
       <div class="container">
         <div class="row justify-content-center text-center mb-4">
           <div class="col-5">
@@ -119,7 +118,8 @@
 
         </div>
       </div>
-    </section><!-- End Services Section --> #}
+       #}
+    </section><!-- End Services Section -->
 
   </main><!-- End Main Section -->
 

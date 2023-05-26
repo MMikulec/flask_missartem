@@ -1,16 +1,22 @@
 {% extends "base.jinja2" %}
 
 {% block content %}
-    <div class="container">
-    <h1>Login</h1>
-    <form action="{{ url_for('private.login') }}" method="post">
-        <label for="username">Username:</label>
-        <input type="text" id="username" name="username" required>
-        <br>
-        <label for="password">Password:</label>
-        <input type="password" id="password" name="password" required>
-        <br>
-        <input type="submit" value="Login">
-    </form>
-    </div>
+    <!-- ======= Main ======= -->
+    <main id="main">
+    {% include 'flash_messages.jinja2' %}
+    <section class="section">
+        <div class="container">
+        <h1>Login</h1>
+        <form action="{{ url_for('private.login') }}" method="post">
+            <label for="username">Username:</label>
+            <input type="text" id="username" name="username" required>
+            <br>
+            <label for="password">Password:</label>
+            <input type="password" id="password" name="password" required>
+            <br><br>
+            <input type="submit" value="Login" class="my_btn">
+        </form>
+        </div>
+    </section>
+    </main>
 {% endblock %}

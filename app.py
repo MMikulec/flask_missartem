@@ -1,32 +1,32 @@
 import threading
 import time
 import zipfile
-
-from flask import send_file
-
-from flask import Flask, render_template, request, send_from_directory, url_for, session, make_response, flash, abort
-from flask_pymongo import PyMongo
 import os
-from datetime import datetime
-from flask import redirect
-from werkzeug.utils import secure_filename
 import uuid
 import shutil
+import piexif
+
+from flask import send_file, Flask, render_template, request, send_from_directory, url_for, session, make_response, \
+    flash, abort, redirect
+from flask_pymongo import PyMongo
+
+from werkzeug.utils import secure_filename
+from werkzeug.security import check_password_hash, generate_password_hash
+
 from PIL import Image
+from PIL.PngImagePlugin import PngInfo
+
 from functools import wraps
 from bson.objectid import ObjectId
+from datetime import datetime, timedelta
 
 app = Flask(__name__)
 app.config.from_pyfile('config.py')
 mongo = PyMongo(app)
 
-# Example user for testing purposes
-users = {
-    'example_user': {
-        'username': 'example_user',
-        'password': 'example_password'
-    }
-}
+NAME = app.config['ARTIST']['name']
+NICKNAME = app.config['ARTIST']['nickname']
+WEBSITE = app.config['ARTIST']['website']
 
 
 # ERROR HANDLE
@@ -46,16 +46,71 @@ def login_required(f):
     return decorated_function
 
 
+def add_admin_user():
+    username = 'admin'
+    password = 'password'  # You should choose a secure password
+
+    if not mongo.db.users.find_one({'username': username}):
+        hashed_password = generate_password_hash(password)
+        mongo.db.users.insert_one({'username': username, 'password': hashed_password})
+        print('Admin user added successfully.')
+    else:
+        print('Admin user already exists.')
+
+
 @app.route('/login', methods=['GET', 'POST'], endpoint='private.login')
 def login():
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
-        if username in users and users[username]['password'] == password:
-            session['username'] = username
-            return redirect(url_for('index'))
+
+        user = mongo.db.users.find_one({'username': username})
+
+        if user:
+            if 'lockout_until' in user and user['lockout_until'] > datetime.utcnow():
+                flash('Too many failed login attempts. Please try again later.', 'danger')
+                return render_template('login.jinja2'), 429
+            else:
+                # If lockout period is over, reset login_attempts to 0 and remove the lockout_until field
+                if 'lockout_until' in user and user['lockout_until'] <= datetime.utcnow():
+                    mongo.db.users.update_one(
+                        {'username': username},
+                        {'$set': {'login_attempts': 0}, '$unset': {'lockout_until': ""}}
+                    )
+                    user = mongo.db.users.find_one({'username': username})  # Retrieve updated user data
+
+                if check_password_hash(user['password'], password):
+                    session['username'] = username
+                    # Reset login attempts and remove lockout_until after successful login
+                    mongo.db.users.update_one(
+                        {'username': username},
+                        {'$set': {'login_attempts': 0}, '$unset': {'lockout_until': ""}}
+                    )
+                    flash('Logged in successfully.', 'success')
+                    return redirect(url_for('index'))
+                else:
+                    # Increment login_attempts only if user is not in lockout period
+                    mongo.db.users.update_one(
+                        {'username': username},
+                        {'$inc': {'login_attempts': 1}}
+                    )
+                    user = mongo.db.users.find_one({'username': username})  # Retrieve updated user data
+
+                    # If this is the 5th failed attempt, set lockout period
+                    if user.get('login_attempts', 0) >= 5:
+                        mongo.db.users.update_one(
+                            {'username': username},
+                            {'$set': {'lockout_until': datetime.utcnow() + timedelta(minutes=15)}}
+                        )
+                        flash('Too many failed login attempts. Your account has been temporarily locked.', 'danger')
+                    else:
+                        flash('Invalid username or password', 'danger')
+                        return render_template('login.jinja2'), 401
+
         else:
-            return 'Invalid username or password', 401
+            flash('Invalid username or password', 'danger')
+            return render_template('login.jinja2'), 401
+
     return render_template('login.jinja2')
 
 
@@ -63,6 +118,43 @@ def login():
 def logout():
     session.pop('username', None)
     return redirect(url_for('index'))
+
+
+@app.route('/change-password', methods=['GET', 'POST'], endpoint='private.change_password')
+def change_password():
+    # Check if user is logged in
+    if 'username' not in session:
+        flash('You must be logged in to change your password.', 'danger')
+        return redirect(url_for('private.login'))
+
+    if request.method == 'POST':
+        old_password = request.form.get('old_password')
+        new_password = request.form.get('new_password')
+        confirm_password = request.form.get('confirm_password')
+
+        username = session['username']
+        user = mongo.db.users.find_one({'username': username})
+
+        # Debugging print statements
+        print("Stored hashed password:", user['password'])
+        print("Entered old password:", old_password)
+        print("Hash of entered old password:", generate_password_hash(old_password))
+
+        if not user or not check_password_hash(user['password'], old_password):
+            flash('Old password is incorrect.', 'danger')
+            return redirect(url_for('private.change_password'))
+
+        if new_password != confirm_password:
+            flash('New password and confirm password do not match.', 'danger')
+            return redirect(url_for('private.change_password'))
+
+        hashed_password = generate_password_hash(new_password)
+        mongo.db.users.update_one({'username': username}, {'$set': {'password': hashed_password}})
+
+        flash('Password changed successfully.', 'success')
+        return redirect(url_for('index'))
+
+    return render_template('change_password.jinja2')
 # #################### LOGIN END ####################
 
 
@@ -76,10 +168,50 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
 
-def compress_and_save_image(input_path, output_path, max_size=(800, 800), quality=85):
+def compress_and_save_image(input_path, output_path, description, max_size=(800, 800), quality=85):
     with Image.open(input_path) as img:
         img.thumbnail(max_size, Image.LANCZOS)
-        img.save(output_path, format=img.format, quality=quality)
+
+        if img.format == "JPEG":
+            # Load existing exif data if any
+            if "exif" in img.info:
+                # Load existing exif data
+                exif_dict = piexif.load(img.info["exif"])
+            else:
+                # Initialize an empty exif data structure if no exif data is present
+                exif_dict = {"0th": {}, "Exif": {}, "GPS": {}, "1st": {}, "thumbnail": None, "Interoperability": {}}
+
+            # Set your custom metadata
+            exif_dict["0th"][piexif.ImageIFD.Artist] = f"{NICKNAME} - {NAME}".encode('utf-8')
+            exif_dict["0th"][piexif.ImageIFD.ImageDescription] = f"{WEBSITE} - {description}".encode('utf-8')
+            exif_dict["Exif"][piexif.ExifIFD.UserComment] = f"Image hosted at {WEBSITE}".encode('utf-8')
+
+            # Set your custom metadata
+            # exif_dict["0th"][piexif.ImageIFD.Make] = u"Marek".encode('utf-8')
+            exif_dict["0th"][piexif.ImageIFD.Software] = f"{WEBSITE}".encode('utf-8')
+
+            # Dump exif data
+            exif_bytes = piexif.dump(exif_dict)
+
+            # Save the image with the updated exif data
+            img.save(output_path, format=img.format, quality=quality, exif=exif_bytes)
+
+        elif img.format == "PNG":
+            # Create dictionary with metadata
+            metadata = PngInfo()
+
+            # Adding some PNG text metadata
+            metadata.add_text('Author', f"{NICKNAME} - {NAME}")
+            metadata.add_text('Software', f"{WEBSITE}")
+            metadata.add_text('Description', f"{WEBSITE} - {description}")
+            metadata.add_text('Comment', f"Image hosted at {WEBSITE}")
+
+            # Save the image with added metadata
+            img.save(output_path, format=img.format, quality=quality, pnginfo=metadata)
+
+        else:
+            # If the image is neither JPEG nor PNG, it is saved without metadata
+            img.save(output_path, format=img.format, quality=quality)
 
 
 def cleanup_old_files(zip_filename):
@@ -117,18 +249,19 @@ def upload():
             filename = secure_filename(generate_unique_filename(photo.filename))
             original_path = os.path.join(original_folder, filename)
             compressed_path = os.path.join(compressed_folder, filename)
+            description = photo.filename.split('.')[0]
 
             # Save original image
             photo.save(original_path)
 
             # Compress and save the image
-            compress_and_save_image(original_path, compressed_path)
+            compress_and_save_image(original_path, compressed_path, description=description)
 
             # Save image information in MongoDB
             mongo.db.images.insert_one({
                 'filename': filename,
                 'category_id': category_id,
-                'description': photo.filename.split('.')[0],  # Empty description initially
+                'description': description,
                 'uploaded_at': datetime.now()
             })
 
@@ -219,12 +352,14 @@ def move_category(category_name, direction):
         prev_category = mongo.db.categories.find_one({'order': category['order'] - 1})
         if prev_category:
             mongo.db.categories.update_one({'_id': category['_id']}, {'$set': {'order': category['order'] - 1}})
-            mongo.db.categories.update_one({'_id': prev_category['_id']}, {'$set': {'order': prev_category['order'] + 1}})
+            mongo.db.categories.update_one({'_id': prev_category['_id']},
+                                           {'$set': {'order': prev_category['order'] + 1}})
     else:  # 'up', so look for the category with a higher order
         next_category = mongo.db.categories.find_one({'order': category['order'] + 1})
         if next_category:
             mongo.db.categories.update_one({'_id': category['_id']}, {'$set': {'order': category['order'] + 1}})
-            mongo.db.categories.update_one({'_id': next_category['_id']}, {'$set': {'order': next_category['order'] - 1}})
+            mongo.db.categories.update_one({'_id': next_category['_id']},
+                                           {'$set': {'order': next_category['order'] - 1}})
 
     return redirect(url_for('index'))
 
@@ -268,7 +403,7 @@ def update_category_name(category_name):
     try:
         os.rename(old_folder_path, new_folder_path)
     except Exception as e:
-        flash("Could not rename the folder: ", str(e))
+        flash(f"Could not rename the folder: {str(e)}", "danger")
         return redirect(request.referrer)
 
     # Update the category name in the MongoDB database
@@ -293,6 +428,7 @@ def download_category(category):
 
         print(zip_filename)
 
+    # New thread for delete .zip file
     cleanup_thread = threading.Thread(target=cleanup_old_files, args=(zip_filename,))
     cleanup_thread.start()
 
@@ -304,7 +440,6 @@ def download_category(category):
 def set_cover_image(category_name, image_name):
     category = mongo.db.categories.find_one({'name': category_name})
     if not category:
-        # return 'Category not found', 404
         abort(404, description=f"Category '{category}' doesn't exist.")
 
     # Update the cover image in the MongoDB database
@@ -408,6 +543,23 @@ def sitemap():
     return response
 
 
+@app.route('/rss.xml', methods=['GET'])
+def rss():
+    """Generate rss.xml including album and image data."""
+    # album and image data
+    albums = mongo.db.categories.find().sort("updated_at", -1)
+    album_list = []
+    for album in albums:
+        album['images'] = list(mongo.db.images.find({'category_id': album['_id']}))
+        album_list.append(album)
+
+    rss_xml = render_template('rss.xml', albums=album_list, artist=NAME)
+    response = make_response(rss_xml)
+    response.headers["Content-Type"] = "application/rss+xml; charset=utf-8"
+
+    return response
+
+
 @app.route('/robots.txt')
 def robots():
     response = make_response(render_template('robots.jinja2'))
@@ -416,4 +568,5 @@ def robots():
 
 
 if __name__ == '__main__':
+    add_admin_user()
     app.run(debug=True)

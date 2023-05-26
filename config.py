@@ -9,3 +9,9 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 MONGO_URI = "mongodb://localhost:27017/portfolio"
 
 REMOVE_ZIP = 10  # remove zip for download after seconds
+
+ARTIST = {
+    "name": "Michaela Mikulcová",
+    "nickname": "MissArtem",
+    "website": "www.missartem.sk"
+}

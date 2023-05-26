@@ -1,0 +1,22 @@
+<!-- rss.xml -->
+<?xml version="1.0" encoding="UTF-8" ?>
+<rss version="2.0">
+<channel>
+  <title>My RSS Feed</title>
+  <link>{{ url_for('rss', _external=True) }}</link>
+  <description>This is a test feed!</description>
+  {% for album in albums %}
+  <item>
+    <title>{{ album.name }}</title>
+    <link>{{ url_for('category', category=album.name, _external=True) }}</link>
+    <description>
+    {% for image in album.images %}
+        <img src="{{ url_for('serve_uploads', sub_path=album.name + '/compressed/' + image.filename, _external=True) }}" alt="{{ image.description }}" />
+    {% endfor %}
+    </description>
+    <author>{{ artist }}</author>
+    <pubDate>{{ album.updated_at }}</pubDate>
+  </item>
+  {% endfor %}
+</channel>
+</rss>
