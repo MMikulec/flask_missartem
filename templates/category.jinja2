@@ -32,7 +32,7 @@
         {% endif %}
         <div class="row mb-4 align-items-center">
           <div class="col-md-6" data-aos="fade-up">
-            <h2>{{ category }}</h2>
+            <h2>{{ category|title }}</h2>
 
             <p>{{ category_info['description'] }}</p>
           </div>
@@ -51,7 +51,7 @@
             </div>
             <div class="col-md-3 ml-auto" data-aos="fade-up" data-aos-delay="100">
               <div class="sticky-content">
-                <h3 class="h3">Back in time</h3>
+                <h3 class="h3">{{ category|title }}</h3>
                 <p class="mb-4"><span class="text-muted">{{ images|length }} pictures in this album</span></p>
                 <div class="mb-5">
                     {% if category_info['created_at'] %}
@@ -60,9 +60,10 @@
                     {% if category_info['updated_at'] %}
                         <p>Updated at: {{ category_info['updated_at'].strftime('%d.%m.%Y %H:%M:%S') }}</p>
                     {% endif %}
-                  <p>Lorem ipsum dolor sit amet, consectetur adipisicing elit. Dolores illo, id recusandae molestias
-                    illum unde pariatur, enim tempora.</p>
+                  {# <p>Lorem ipsum dolor sit amet, consectetur adipisicing elit. Dolores illo, id recusandae molestias
+                    illum unde pariatur, enim tempora.</p>  #}
                 </div>
+                {#
                 <h4 class="h4 mb-3">What I did</h4>
                 <ul class="list-unstyled list-line mb-5">
                   <li>Design</li>
@@ -70,6 +71,7 @@
                   <li>CMS</li>
                   <li>Logo</li>
                 </ul>
+                 #}
                 <p><a href="{{ url_for('download_category', category=category) }}" class="readmore"><span class="bi bi-download"></span> Download all images</a></p>
               </div>
             </div>

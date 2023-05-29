@@ -5,9 +5,10 @@ import os
 import uuid
 import shutil
 import piexif
+import importlib
 
 from flask import send_file, Flask, render_template, request, send_from_directory, url_for, session, make_response, \
-    flash, abort, redirect
+    flash, abort, redirect, Response
 from flask_pymongo import PyMongo
 
 from werkzeug.utils import secure_filename
@@ -18,11 +19,36 @@ from PIL.PngImagePlugin import PngInfo
 
 from functools import wraps
 from bson.objectid import ObjectId
+from bson.json_util import dumps
 from datetime import datetime, timedelta
 
 app = Flask(__name__)
-app.config.from_pyfile('config.py')
+if os.getenv('ENVIRONMENT') == 'PRODUCTION':
+    app.config.from_pyfile('production.py')
+else:
+    app.config.from_pyfile('config.py')
 mongo = PyMongo(app)
+
+
+"""def init_mongo():
+    global mongo
+    mongo = PyMongo(app)
+
+    if not mongo.db.users.find_one({'username': 'admin'}):
+        hashed_password = generate_password_hash('password')
+        mongo.db.users.insert_one({'username': 'admin', 'password': hashed_password})
+        print('Admin user added successfully.')
+    else:
+        print('Admin user already exists.')
+
+
+if os.getenv('ENVIRONMENT') == 'PRODUCTION':
+    print("PRODUCTION")
+    postfork = importlib.import_module('uwsgidecorators').postfork
+    postfork(init_mongo)
+else:
+    init_mongo()"""
+
 
 NAME = app.config['ARTIST']['name']
 NICKNAME = app.config['ARTIST']['nickname']
@@ -44,18 +70,6 @@ def login_required(f):
         return f(*args, **kwargs)
 
     return decorated_function
-
-
-def add_admin_user():
-    username = 'admin'
-    password = 'password'  # You should choose a secure password
-
-    if not mongo.db.users.find_one({'username': username}):
-        hashed_password = generate_password_hash(password)
-        mongo.db.users.insert_one({'username': username, 'password': hashed_password})
-        print('Admin user added successfully.')
-    else:
-        print('Admin user already exists.')
 
 
 @app.route('/login', methods=['GET', 'POST'], endpoint='private.login')
@@ -155,6 +169,8 @@ def change_password():
         return redirect(url_for('index'))
 
     return render_template('change_password.jinja2')
+
+
 # #################### LOGIN END ####################
 
 
@@ -315,7 +331,7 @@ def serve_original_uploads(sub_path):
 @app.route('/create_category', methods=['POST'])
 @login_required
 def create_category():
-    category_name = request.form.get('category_name')
+    category_name = request.form.get('category_name').lower()
     if category_name:
         new_category_path = os.path.join(app.config['UPLOAD_FOLDER'], category_name)
         os.makedirs(new_category_path)
@@ -567,6 +583,53 @@ def robots():
     return response
 
 
+@app.route('/api/categories', methods=['GET'])
+def get_albums():
+    albums = mongo.db.categories.find()
+    data = []
+    for album in albums:
+        item = {
+            'id': str(album['_id']),
+            'name': album['name'],
+            'order': album['order'],
+            'cover_image': url_for('serve_uploads', sub_path=album['name'] + '/compressed/' + album['cover_image'],
+                                   _external=True) if 'cover_image' in album and album['cover_image'] else None,
+            'description': album['description'],
+            'created_at': album['created_at'].isoformat(),
+            'updated_at': album['updated_at'].isoformat(),
+            'keywords': album['keywords'],
+            'url': url_for('category', category=album['name'], _external=True),
+            'images_api': url_for('get_images', category=album['name'], _external=True)
+        }
+        data.append(item)
+    return Response(dumps(data), mimetype='application/json')
+
+
+@app.route('/api/<category>/images', methods=['GET'])
+def get_images(category):
+    category = mongo.db.categories.find_one({'name': category})
+    if category is None:
+        return Response(dumps({'error': 'Category not found'}), mimetype='application/json'), 404
+
+    images = mongo.db.images.find({'category_id': category['_id']})
+    data = []
+    for image in images:
+        item = {
+            'id': str(image['_id']),
+            'filename': image['filename'],
+            'description': image['description'],
+            'uploaded_at': image['uploaded_at'].isoformat(),
+            'compressed_url': url_for('serve_uploads', sub_path=category['name'] + '/compressed/' + image['filename'],
+                                      _external=True),
+            'original_url': url_for('serve_uploads', sub_path=category['name'] + '/original/' + image['filename'],
+                                    _external=True)
+        }
+        data.append(item)
+    return Response(dumps(data), mimetype='application/json')
+
+
 if __name__ == '__main__':
-    add_admin_user()
-    app.run(debug=True)
+    if os.getenv('ENVIRONMENT') == 'PRODUCTION':
+        app.run(host='0.0.0.0', port=8000)
+    else:
+        app.run(debug=True)

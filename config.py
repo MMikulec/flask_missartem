@@ -15,3 +15,9 @@ ARTIST = {
     "nickname": "MissArtem",
     "website": "www.missartem.sk"
 }
+
+SOCIAL_MEDIA = {
+    'facebook': 'https://www.facebook.com/YourPage',
+    'twitter': 'https://twitter.com/YourAccount',
+    'instagram': 'https://www.instagram.com/YourAccount'
+}

@@ -5,18 +5,25 @@
     <main id="main">
     {% include 'flash_messages.jinja2' %}
     <section class="section">
+
         <div class="container">
-        <h1>Login</h1>
-        <form action="{{ url_for('private.login') }}" method="post">
-            <label for="username">Username:</label>
-            <input type="text" id="username" name="username" required>
-            <br>
-            <label for="password">Password:</label>
-            <input type="password" id="password" name="password" required>
-            <br><br>
-            <input type="submit" value="Login" class="my_btn">
-        </form>
+            {% if not session['username'] %}
+                <h1>Login</h1>
+                <form action="{{ url_for('private.login') }}" method="post">
+                    <label for="username">Username:</label>
+                    <input type="text" id="username" name="username" required>
+                    <br>
+                    <label for="password">Password:</label>
+                    <input type="password" id="password" name="password" required>
+                    <br><br>
+                    <input type="submit" value="Login" class="my_btn">
+                </form>
+            {% else %}
+                <h1>{{ session['username'] }}</h1>
+                <p>You are logged in. <a href="{{ url_for("private.logout") }}" class="alert-link">Logout</a> <a href="{{ url_for("private.change_password") }}" class="alert-link">Change password</a></p>
+            {% endif %}
         </div>
+
     </section>
     </main>
 {% endblock %}

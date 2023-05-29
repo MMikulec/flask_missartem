@@ -45,7 +45,7 @@
                 <div class="item {# web (design, branding, photography) #} col-sm-6 col-md-4 col-lg-4 mb-4">
                     <a href="{{ url_for('category', category=category.name) }}" class="item-wrap fancybox">
                     <div class="work-info">
-                        <h3>{{ category.name }}</h3>
+                        <h3>{{ category.name|title }}</h3>
                         {# <span>Posters</span> #}
 
                         {% if session['username'] %}

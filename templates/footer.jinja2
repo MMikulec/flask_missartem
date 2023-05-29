@@ -15,10 +15,10 @@
       </div>
     </div>
     <div class="col-sm-6 social text-md-end">
-      <a href="#"><span class="bi bi-twitter"></span></a>
-      <a href="#"><span class="bi bi-facebook"></span></a>
-      <a href="#"><span class="bi bi-instagram"></span></a>
-      <a href="#"><span class="bi bi-linkedin"></span></a>
+      <a href="{{ url_for('rss') }}"><span class="bi bi-rss-fill"></span></a>
+      {% for platform, url in config['SOCIAL_MEDIA'].items() %}
+      <a href="{{ url }}" target="_blank"><span class="bi bi-{{ platform }}"></span></a>
+      {% endfor %}
     </div>
   </div>
 </div>
